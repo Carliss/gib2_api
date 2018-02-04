@@ -1,0 +1,14 @@
+# Mac
+.DS_Store
+
+# Windows
+
+# PyCharm
+.idea/
+
+# Python
+venv/
+__pycache__/
+
+# Secrets
+secrets/
