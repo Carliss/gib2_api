@@ -12,3 +12,7 @@ __pycache__/
 
 # Secrets
 secrets/
+
+# database json
+uni.json
+country.json
