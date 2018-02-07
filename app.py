@@ -8,12 +8,13 @@ from project.mongo_db import Database, init_database
 settings = {
     'MONGO_URI': 'mongodb://localhost:27017/',
     'MONGO_DB': 'gib',
-    'MONGO_COLL': 'uni'
+    'MONGO_UNI_COLL': 'uni',
+    'MONGO_COUNTRY_COLL': 'world_countries'
 }
 
 
 components = [
-    Component(Database, init=init_database, preload=True)
+    Component(Database, init=init_database, preload=True),
 ]
 
 

@@ -14,6 +14,8 @@ routes = [
 
     Route('/search_by_all/{text}', 'GET', views.search_by_all),
 
+    Route('/uni_in_country/{country}', 'GET', views.uni_in_country),
+
     Include('/', docs_urls),
     Include('/static', static_urls)
 ]

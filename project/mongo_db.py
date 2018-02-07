@@ -10,7 +10,7 @@ class Database(Component):
     MongoDB class that holds all methods for interact with mongo.
     """
 
-    def __init__(self, uri, db, coll):
+    def __init__(self, uri, db, uni_coll, country_coll):
         """
         :param uri:  Uri for mongodb e.g "mongodb://localhost:27017/gib"
         :param db: the database in mongodb
@@ -18,7 +18,8 @@ class Database(Component):
         """
         self._mongo = MongoClient(uri)
         self._db = self._mongo[db]
-        self._coll = self._db[coll]
+        self._uni_coll = self._db[uni_coll]
+        self._country_coll = self._db[country_coll]
 
     def _serialize_object_id(funk):
         """
@@ -56,7 +57,7 @@ class Database(Component):
         returns every uni doc in the collection
         :return: list with uni docs
         """
-        q = list(self._coll.find({}))
+        q = list(self._uni_coll.find({}))
         return q
 
     @_serialize_object_id
@@ -66,17 +67,29 @@ class Database(Component):
         :param key: mongodb field name
         :return:  list of queries with key
         """
-        q = list(self._coll.find({}, {key: 1}))
+        q = list(self._uni_coll.find({}, {key: 1}))
         return q
 
     @_serialize_object_id
     def search_by_all(self, text):
-        q = list(self._coll.find({'$text': {'$search': text}},
+        q = list(self._uni_coll.find({'$text': {'$search': text}},
                                  {'score': { '$meta': "textScore" }}
                                  ))
+        return q
+
+    @_serialize_object_id
+    def get_country_list(self, country):
+        count = self._country_coll.find_one({'properties.name': {'$regex': country,
+                                                                 '$options': 'i'
+                                                                 }},
+                                            {'geometry': 1, '_id': 0})
+        q = list(self._uni_coll.find({'location': { '$geoWithin': { '$geometry' : count[
+            'geometry']}}}))
+
         return q
 
 
 def init_database(settings: Settings):
     # TODO
-    return Database(settings['MONGO_URI'], settings['MONGO_DB'], settings['MONGO_COLL'])
+    return Database(settings['MONGO_URI'], settings['MONGO_DB'], settings['MONGO_UNI_COLL'],
+                    settings['MONGO_COUNTRY_COLL'])
