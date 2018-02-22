@@ -20,7 +20,7 @@ def as_geojson(data):
 
 def get_university_by_id(db: Database, _id: str):
     q = db.get_university_by_id(_id)
-    return q
+    return Response(q, headers={"Access-Control-Allow-Origin": '*'})
 
 
 def ping_database(db: Database):
@@ -31,7 +31,8 @@ def ping_database(db: Database):
 
 def list_all_uni_as_geo_json(db: Database):
     q = db.list_all_uni()
-    return as_geojson(q)
+    return Response(as_geojson(q),headers={"Access-Control-Allow-Origin": '*'}
+    )
 
 
 def search_by_all(db: Database, text):
@@ -47,7 +48,7 @@ def uni_in_country(db: Database, country):
     for i in q:
         ii = {"type": "Feature",
       "properties": i}
-        ii['geometry'] = i['location']
+        ii['geometry'] = i['geometry']
         qq.append(ii)
     return Response({
         "type": "FeatureCollection",

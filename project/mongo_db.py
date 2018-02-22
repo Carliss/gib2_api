@@ -96,8 +96,10 @@ class Database(Component):
                                                                  '$options': 'i'
                                                                  }},
                                             {'geometry': 1, '_id': 0})
-        q = list(self._uni_coll.find({'location': { '$geoWithin': { '$geometry' : count[
+        print(count)
+        q = list(self._uni_coll.find({'geometry': { '$geoWithin': { '$geometry' : count[
             'geometry']}}}))
+        print(q)
 
         return q
 
