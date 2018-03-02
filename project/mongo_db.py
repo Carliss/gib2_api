@@ -41,12 +41,19 @@ class Database(Component):
             if not self.ping():
                 return Response({'reason': 'Database is down'}, status=503)
             q = funk(self, *args, **kwargs)
-            for doc in q:
-                doc['_id'] = str(doc['_id'])
-                if doc.get('scraped'):
-                    doc['scraped'] = str(doc['scraped'])
-                if doc.get('raw_html'):
-                    del doc['raw_html']
+            if isinstance(q, dict):
+                q['_id'] = str(q['_id'])
+                if q.get('rapporter'):
+                    q['rapporter'] = [str(i) for i in q['rapporter']]
+            else:
+                for doc in q:
+                    doc['_id'] = str(doc['_id'])
+                    if doc.get('scraped'):
+                        doc['scraped'] = str(doc['scraped'])
+                    if doc.get('raw_html'):
+                        del doc['raw_html']
+                    if doc.get('rapporter'):
+                        doc['rapporter'] = [str(i) for i in doc['rapporter']]
             return q
         return wrapper
 
@@ -184,8 +191,11 @@ class Database(Component):
         to_update = 'notes' if note else 'links'
         to_update_key = 'note' if note else 'link'
         to_update_value = note if note else link
-        next_id = max([int(i) for i in user['my_universities'].get(uni_id).get(
-            to_update).keys()]) + 1
+        try:
+            next_id = max([int(i) for i in user['my_universities'].get(uni_id).get(
+                to_update).keys()]) + 1
+        except:
+            next_id = 0
         self._users.update_one({'_id': email},
                                {
                                    '$set': {
