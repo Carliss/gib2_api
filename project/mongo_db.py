@@ -10,7 +10,8 @@ class Database(Component):
     MongoDB class that holds all methods for interact with mongo.
     """
 
-    def __init__(self, uri: str, db: str, uni_coll: str, country_coll: str) -> None:
+    def __init__(self, uri: str, db: str, uni_coll: str, country_coll: str, reports_coll: str) -> \
+            None:
         """
         Creates connections to the database
         :param uri:  Uri for mongodb e.g "mongodb://localhost:27017/gib"
@@ -22,6 +23,7 @@ class Database(Component):
         self._db = self._mongo[db]
         self._uni_coll = self._db[uni_coll]
         self._country_coll = self._db[country_coll]
+        self._reports_coll = self._db[reports_coll]
 
     def _serialize_object_id(funk):
         """
@@ -37,6 +39,8 @@ class Database(Component):
             q = funk(self, *args, **kwargs)
             for doc in q:
                 doc['_id'] = str(doc['_id'])
+                if doc.get('scraped'):
+                    doc['scraped'] = str(doc['scraped'])
             return q
         return wrapper
 
@@ -51,6 +55,7 @@ class Database(Component):
         except:
             return False
 
+    @_serialize_object_id
     def get_university_by_id(self, _id: str):
         """
         returns the university the _id match if found in database, else []
@@ -58,7 +63,6 @@ class Database(Component):
         :return: dict
         """
         q = self._uni_coll.find_one({'_id': ObjectId(_id)})
-        q['_id'] = str(q['_id'])
         return q
 
     @_serialize_object_id
@@ -84,9 +88,13 @@ class Database(Component):
         :param text: string of search
         :return: list of universities
         """
-        q = list(self._uni_coll.find({'$text': {'$search': text}},
+        def remove_reports(q):
+            if q.get('rapporter'):
+                del q['rapporter']
+            return q
+        q = [remove_reports(i) for i in self._uni_coll.find({'$text': {'$search': text}},
                                      {'score': { '$meta': "textScore" }}
-                                     ))
+                                                            ).sort([('score', {'$meta': 'textScore'})])]
         return q
 
     @_serialize_object_id
@@ -103,14 +111,26 @@ class Database(Component):
 
         return q
 
-    @_serialize_object_id
-    def get_fagomraader(self, search: str=None) -> list:
+    def get_fagomraader(self, search: str) -> list:
         # TODO
         q = self._uni_coll.distinct('Fagområde')
+        if search:
+            q = [i for i in q if search.lower() in i.lower()]
+        return q
+
+    @_serialize_object_id
+    def get_reports_for_university(self, university_id: str) -> list:
+        reports_ids = self._uni_coll.find_one({'_id': ObjectId(university_id)},
+                                              {'rapporter': 1, '_id': 0}
+                                              ).get('rapporter')
+        if reports_ids:
+            q = list(self._reports_coll.find({'_id': {'$in': reports_ids}}))
+        else:
+            q = []
         return q
 
 
 def init_database(settings: Settings):
     # TODO
     return Database(settings['MONGO_URI'], settings['MONGO_DB'], settings['MONGO_UNI_COLL'],
-                    settings['MONGO_COUNTRY_COLL'])
+                    settings['MONGO_COUNTRY_COLL'], settings['MONGO_REPORTS_COLL'])

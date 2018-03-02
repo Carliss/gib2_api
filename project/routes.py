@@ -15,7 +15,12 @@ routes = [
 
     Route('/uni_in_country/{country}', 'GET', views.uni_in_country),
 
-    Route('/fagomraade', 'GET', views.get_fagomraader, name='get_fagomraader'),
+    Route('/fagomraade/{search}', 'GET', views.get_fagomraader, name='get_fagomraader'),
+
+    Route('/advanced_search', 'GET', views.advanced_search, name='advanced_search'),
+
+    Route('/get_reports_for_university/{_id}', 'GET', views.get_reports_for_university,
+          name='get_reports_for_university'),
 
     Include('/', docs_urls),
     Include('/static', static_urls)
