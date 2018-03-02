@@ -160,6 +160,8 @@ class Database(Component):
             del uni['raw_html']
             user['my_universities'][uni.get('_id')]['university'] = uni
 
+        user['my_universities'] = list(user['my_universities'].values())
+
         return user
 
     def add_uni_to_cart(self, email: str, uni_id: str):
