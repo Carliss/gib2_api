@@ -1,8 +1,11 @@
+import datetime
+
 from apistar import Component
 from apistar.http import Response
 from apistar.types import Settings
 from bson import ObjectId
 from pymongo import MongoClient
+from pymongo.collection import ReturnDocument
 
 
 class Database(Component):
@@ -10,8 +13,8 @@ class Database(Component):
     MongoDB class that holds all methods for interact with mongo.
     """
 
-    def __init__(self, uri: str, db: str, uni_coll: str, country_coll: str, reports_coll: str) -> \
-            None:
+    def __init__(self, uri: str, db: str, uni_coll: str, country_coll: str, reports_coll: str,
+                 users_coll: str) -> None:
         """
         Creates connections to the database
         :param uri:  Uri for mongodb e.g "mongodb://localhost:27017/gib"
@@ -21,9 +24,10 @@ class Database(Component):
         """
         self._mongo = MongoClient(uri)
         self._db = self._mongo[db]
-        self._uni_coll = self._db[uni_coll]
-        self._country_coll = self._db[country_coll]
-        self._reports_coll = self._db[reports_coll]
+        self._uni = self._db[uni_coll]
+        self._country = self._db[country_coll]
+        self._reports = self._db[reports_coll]
+        self._users = self._db[users_coll]
 
     def _serialize_object_id(funk):
         """
@@ -41,6 +45,8 @@ class Database(Component):
                 doc['_id'] = str(doc['_id'])
                 if doc.get('scraped'):
                     doc['scraped'] = str(doc['scraped'])
+                if doc.get('raw_html'):
+                    del doc['raw_html']
             return q
         return wrapper
 
@@ -62,23 +68,23 @@ class Database(Component):
         :param _id: string, hex
         :return: dict
         """
-        q = self._uni_coll.find_one({'_id': ObjectId(_id)})
+        q = self._uni.find_one({'_id': ObjectId(_id)})
+
         return q
 
     @_serialize_object_id
     def list_all_uni(self) -> list:
         """
         returns queries with id and key e.g key=universitet
-        :param key: mongodb field name
         :return:  Cursor
         """
-        q = list(self._uni_coll.aggregate([{'$match': {'_id': {'$exists': True}}},
-                                          {'$project': {
+        q = list(self._uni.aggregate([{'$match': {'_id': {'$exists': True}}},
+                                      {'$project': {
                                               'type': 'Feature',
                                               'properties.university': '$universitet',
                                               'properties._id': '$_id',
                                               'geometry': '$geometry'
-                                          }}]))
+                                      }}]))
         return q
 
     @_serialize_object_id
@@ -88,49 +94,129 @@ class Database(Component):
         :param text: string of search
         :return: list of universities
         """
-        def remove_reports(q):
-            if q.get('rapporter'):
-                del q['rapporter']
-            return q
-        q = [remove_reports(i) for i in self._uni_coll.find({'$text': {'$search': text}},
-                                     {'score': { '$meta': "textScore" }}
-                                                            ).sort([('score', {'$meta': 'textScore'})])]
+        def remove_reports(_q):
+            if _q.get('rapporter'):
+                del _q['rapporter']
+            return _q
+        q = [remove_reports(i) for i in self._uni.find({'$text': {'$search': text}},
+                                                       {'score': {'$meta': "textScore"}}
+                                                       ).sort([('score', {'$meta': 'textScore'})])]
         return q
 
     @_serialize_object_id
     def get_country_list(self, country):
         # TODO
-        count = self._country_coll.find_one({'properties.name': {'$regex': country,
-                                                                 '$options': 'i'
-                                                                 }},
-                                            {'geometry': 1, '_id': 0})
+        count = self._country.find_one({'properties.name': {'$regex': country, '$options': 'i'}},
+                                       {'geometry': 1, '_id': 0})
         print(count)
-        q = list(self._uni_coll.find({'geometry': { '$geoWithin': { '$geometry' : count[
-            'geometry']}}}))
+        q = list(self._uni.find({'geometry': {'$geoWithin': {'$geometry': count['geometry']}}}))
         print(q)
 
         return q
 
     def get_fagomraader(self, search: str) -> list:
         # TODO
-        q = self._uni_coll.distinct('Fagområde')
+        q = self._uni.distinct('Fagområde')
         if search:
             q = [i for i in q if search.lower() in i.lower()]
         return q
 
     @_serialize_object_id
     def get_reports_for_university(self, university_id: str) -> list:
-        reports_ids = self._uni_coll.find_one({'_id': ObjectId(university_id)},
-                                              {'rapporter': 1, '_id': 0}
-                                              ).get('rapporter')
+        reports_ids = self._uni.find_one({'_id': ObjectId(university_id)},
+                                         {'rapporter': 1, '_id': 0}).get('rapporter')
         if reports_ids:
-            q = list(self._reports_coll.find({'_id': {'$in': reports_ids}}))
+            q = list(self._reports.find({'_id': {'$in': reports_ids}}))
         else:
             q = []
         return q
+
+    def get_or_create_user(self, email: str):
+        # todo add validation
+        # user exists
+        user = self._users.find_one({'_id': email})
+        if user:
+            return user
+        # create user
+        user = self._users.find_one_and_update({'_id': email},
+                                               {'$set': {'last_modified': datetime.datetime.utcnow(
+                                               ).isoformat(),
+                                                         'my_universities': {}}},
+                                               upsert=True,
+                                               return_document=ReturnDocument.AFTER)
+        return user
+
+    def add_uni_to_cart(self, email: str, uni_id: str):
+        user = self._users.find_one({'_id': email}, {'my_universities': 1})
+        # no user by that id
+        if not user:
+            return 'user not found'
+        # no id found
+        if uni_id not in [str(i.get('_id')) for i in self._uni.find({}, {'_id': 1})]:
+            return 'university_id not found'
+        # if already added
+        if uni_id in user['my_universities'].keys():
+            return 'university already added'
+
+        self._users.update_one({'_id': email},
+                               {'$set': {
+                                   'last_modified': datetime.datetime.utcnow().isoformat(),
+                                   f'my_universities.{uni_id}.notes': {},
+                                   f'my_universities.{uni_id}.links': {}
+                               }}
+                               )
+        return 'ok'
+
+    def remove_uni_from_cart(self, email: str, uni_id: str):
+        user = self._users.update_one({'_id': email,
+                                       f'my_universities.{uni_id}': {'$exists': True}},
+                                      {'$unset': {f'my_universities.{uni_id}': True}})
+        return 'ok' if user.modified_count else 'nothing updated'
+
+    def add_link_or_note(self, email, uni_id, head, note, link):
+        user = self._users.find_one({'_id': email}, {'my_universities': 1})
+        # no user by that id
+        if not user:
+            return 'user not found'
+        # my_uni_id not found
+        if not user['my_universities'].get(uni_id):
+            return 'uni_id not found'
+        to_update = 'notes' if note else 'links'
+        to_update_key = 'note' if note else 'link'
+        to_update_value = note if note else link
+        next_id = max([int(i) for i in user['my_universities'].get(uni_id).get(
+            to_update).keys()]) + 1
+        self._users.update_one({'_id': email},
+                               {
+                                   '$set': {
+                                       f'my_universities.{uni_id}.{to_update}.{next_id}':
+                                           {'head': head,
+                                            f'{to_update_key}': to_update_value}
+                                   }
+                               })
+        return 'ok'
+
+    def remove_link_or_note(self, email, uni_id, note_id, link_id):
+        user = self._users.find_one({'_id': email}, {'my_universities': 1})
+        # no user by that id
+        if not user:
+            return 'user not found'
+        # my_uni_id not found
+        if not user['my_universities'].get(uni_id):
+            return 'uni_id not found'
+        to_update_id = note_id if note_id else link_id
+        to_update = 'notes' if note_id else 'links'
+        self._users.update_one({'_id': email},
+                               {
+                                   '$unset': {
+                                       f'my_universities.{uni_id}.{to_update}.{to_update_id}': True
+                                   }
+                               })
+        return 'ok'
 
 
 def init_database(settings: Settings):
     # TODO
     return Database(settings['MONGO_URI'], settings['MONGO_DB'], settings['MONGO_UNI_COLL'],
-                    settings['MONGO_COUNTRY_COLL'], settings['MONGO_REPORTS_COLL'])
+                    settings['MONGO_COUNTRY_COLL'], settings['MONGO_REPORTS_COLL'],
+                    settings['MONGO_USERS_COLL'])

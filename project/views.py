@@ -86,3 +86,37 @@ def advanced_search(params: QueryParams):
     :return:
     """
     return params.keys()
+
+
+def create_or_get_user(db: Database, email: str):
+    user = db.get_or_create_user(email)
+    return Response(user, headers={"Access-Control-Allow-Origin": '*'})
+
+
+def add_uni_to_cart(db: Database, email: str, uni_id: str):
+    message = db.add_uni_to_cart(email, uni_id)
+    data = {'message': message}
+    return Response(data, headers={"Access-Control-Allow-Origin": '*'})
+
+
+def remove_uni_from_cart(db: Database, email: str, uni_id: str):
+    message = db.remove_uni_from_cart(email, uni_id)
+    data = {'message': message}
+    return Response(data, headers={"Access-Control-Allow-Origin": '*'})
+
+
+def add_link_or_note(db: Database, qp: QueryParams, email: str):
+    uni_id = qp.get('uni_id')
+    head = qp.get('head')
+    note = qp.get('note')
+    link = qp.get('link')
+    message = db.add_link_or_note(email, uni_id, head, note, link)
+    return Response({'message': message}, headers={"Access-Control-Allow-Origin": '*'})
+
+
+def remove_link_or_note(db: Database, qp: QueryParams, email: str):
+    uni_id = qp.get('uni_id')
+    note_id = qp.get('note_id')
+    link_id = qp.get('link_id')
+    message = db.remove_link_or_note(email, uni_id, note_id, link_id)
+    return Response({'message': message}, headers={"Access-Control-Allow-Origin": '*'})

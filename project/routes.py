@@ -22,6 +22,20 @@ routes = [
     Route('/get_reports_for_university/{_id}', 'GET', views.get_reports_for_university,
           name='get_reports_for_university'),
 
+    Route('/create_or_get_user/{email}', 'GET', views.create_or_get_user,
+          name='create_or_get_user'),
+
+    Route('/add_uni_to_cart/{email}/{uni_id}', 'GET', views.add_uni_to_cart,
+          name='add_uni_to_cart'),
+
+    Route('/remove_uni_from_cart/{email}/{uni_id}', 'GET', views.remove_uni_from_cart,
+          name='remove_uni_from_cart'),
+
+    Route('/remove_link_or_note/{email}', 'GET', views.remove_link_or_note,
+          name='remove_link_or_note'),
+
+    Route('/add_link_or_note/{email}', 'GET', views.add_link_or_note, name='add_link_or_note'),
+
     Include('/', docs_urls),
     Include('/static', static_urls)
 ]

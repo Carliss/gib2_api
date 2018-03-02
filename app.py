@@ -11,7 +11,8 @@ settings = {
     'MONGO_DB': 'gib',
     'MONGO_UNI_COLL': 'uni',
     'MONGO_COUNTRY_COLL': 'world_countries',
-    'MONGO_REPORTS_COLL': 'rapporter'
+    'MONGO_REPORTS_COLL': 'rapporter',
+    'MONGO_USERS_COLL': 'users'
 }
 
 
