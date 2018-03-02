@@ -142,15 +142,24 @@ class Database(Component):
         # todo add validation
         # user exists
         user = self._users.find_one({'_id': email})
-        if user:
-            return user
         # create user
-        user = self._users.find_one_and_update({'_id': email},
-                                               {'$set': {'last_modified': datetime.datetime.utcnow(
-                                               ).isoformat(),
-                                                         'my_universities': {}}},
-                                               upsert=True,
-                                               return_document=ReturnDocument.AFTER)
+        if not user:
+            user = self._users.find_one_and_update({'_id': email},
+                                                   {'$set': {'last_modified': datetime.datetime.utcnow(
+                                                   ).isoformat(),
+                                                             'my_universities': {}}},
+                                                   upsert=True,
+                                                   return_document=ReturnDocument.AFTER)
+        uni_ids = user['my_universities'].keys()
+        print(uni_ids)
+        unis = list(self._uni.find({'_id': {'$in': [ObjectId(i) for i in uni_ids]}}))
+        for uni in unis:
+            uni['_id'] = str(uni['_id'])
+            if uni.get('rapporter'):
+                del uni['rapporter']
+            del uni['raw_html']
+            user['my_universities'][uni.get('_id')]['university'] = uni
+
         return user
 
     def add_uni_to_cart(self, email: str, uni_id: str):
@@ -177,7 +186,11 @@ class Database(Component):
     def remove_uni_from_cart(self, email: str, uni_id: str):
         user = self._users.update_one({'_id': email,
                                        f'my_universities.{uni_id}': {'$exists': True}},
-                                      {'$unset': {f'my_universities.{uni_id}': True}})
+                                      {'$unset': {f'my_universities.{uni_id}': True},
+                                       '$set': {
+                                           'last_modified': datetime.datetime.utcnow().isoformat(),
+                                       }
+                                       })
         return 'ok' if user.modified_count else 'nothing updated'
 
     def add_link_or_note(self, email, uni_id, head, note, link):
@@ -201,7 +214,8 @@ class Database(Component):
                                    '$set': {
                                        f'my_universities.{uni_id}.{to_update}.{next_id}':
                                            {'head': head,
-                                            f'{to_update_key}': to_update_value}
+                                            f'{to_update_key}': to_update_value},
+                                       'last_modified': datetime.datetime.utcnow().isoformat()
                                    }
                                })
         return 'ok'
@@ -220,6 +234,9 @@ class Database(Component):
                                {
                                    '$unset': {
                                        f'my_universities.{uni_id}.{to_update}.{to_update_id}': True
+                                   },
+                                   '$set': {
+                                       'last_modified': datetime.datetime.utcnow().isoformat(),
                                    }
                                })
         return 'ok'
