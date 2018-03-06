@@ -168,17 +168,7 @@ def search_universities(db: Database, search: str):
     :return: List of universities
     """
     q = db.search_universities(search)
-    if not q:
-        return []
-    qq = []
-    for i in q:
-        ii = {
-            "type": "Feature",
-            "properties": i,
-            'geometry': i['geometry']
-        }
-        qq.append(ii)
-    return qq
+    return q
 
 
 @allow_cross_origin
