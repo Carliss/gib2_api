@@ -37,7 +37,8 @@ def serialize_object_id(funk):
                 if doc.get('rapporter'):
                     doc['rapporter'] = [str(i) for i in doc['rapporter']]
                 if doc.get('properties'):
-                    doc['properties'] = str(doc['properties'])
+                    doc['properties']['_id'] = str(doc['properties']['_id'])
+        pp(q)
         return q
 
     return wrapper
