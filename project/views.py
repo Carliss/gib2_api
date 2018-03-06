@@ -32,8 +32,9 @@ def as_geojson(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         data = func(*args, **kwargs)
-        for i in data:
-            i['properties']['_id'] = str(i['properties']['_id'])
+        if isinstance(data, list):
+            for i in data:
+                i['properties']['_id'] = str(i['properties']['_id'])
         return {
             'type': 'FeatureCollection',
             'features': data
@@ -156,6 +157,7 @@ def advanced_search(params: QueryParams):
 
 
 @allow_cross_origin
+@as_geojson
 def search_universities(db: Database, search: str):
     """
     Used for search completion,
@@ -166,7 +168,17 @@ def search_universities(db: Database, search: str):
     :return: List of universities
     """
     q = db.search_universities(search)
-    return q
+    if not q:
+        return []
+    qq = []
+    for i in q:
+        ii = {
+            "type": "Feature",
+            "properties": i,
+            'geometry': i['geometry']
+        }
+        qq.append(ii)
+    return qq
 
 
 @allow_cross_origin

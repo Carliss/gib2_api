@@ -7,6 +7,7 @@ from bson import ObjectId
 from pymongo import MongoClient
 from pymongo.collection import ReturnDocument
 
+from pprint import pprint as pp
 
 def serialize_object_id(funk):
     """
@@ -21,6 +22,7 @@ def serialize_object_id(funk):
         if not self.ping():
             return Response({'reason': 'Database is down'}, status=503)
         q = funk(self, *args, **kwargs)
+        qq = []
         if isinstance(q, dict):
             q['_id'] = str(q['_id'])
             if q.get('rapporter'):
@@ -34,6 +36,8 @@ def serialize_object_id(funk):
                     del doc['raw_html']
                 if doc.get('rapporter'):
                     doc['rapporter'] = [str(i) for i in doc['rapporter']]
+                if doc.get('properties'):
+                    doc['properties'] = str(doc['properties'])
         return q
 
     return wrapper
@@ -140,6 +144,7 @@ class Database(Component):
             q = []
         return q
 
+    @serialize_object_id
     def search_universities(self, search: str):
         def remove_reports(_q):
             if _q.get('rapporter'):
@@ -148,11 +153,20 @@ class Database(Component):
             del _q['raw_html']
             return _q
 
-        q = [remove_reports(i) for i in self._uni.find({'$text': {'$search': search}},
-                                                       {'score': {'$meta': "textScore"}}
-                                                       ).sort([('score',
-                                                                {'$meta': 'textScore'})]
-                                                              )[:5]]
+        # q = [remove_reports(i) for i in self._uni.find({'$text': {'$search': search}},
+        #                                                {'score': {'$meta': "textScore"}}
+        #                                                ).sort([('score',
+        #                                                         {'$meta': 'textScore'})]
+        #                                                       )[:5]]
+        q = list(self._uni.aggregate([{'$match': {'$text': {'$search': search}}},
+                                      {'$sort': {'score': {'$meta': 'textScore'}}},
+                                      {'$project': {
+                                          'type': 'Feature',
+                                          'properties.university': '$universitet',
+                                          'properties._id': '$_id',
+                                          'geometry': '$geometry'
+                                      }}
+                                      ]))
         return q
 
     def get_or_create_user(self, email: str):
