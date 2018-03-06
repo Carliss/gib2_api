@@ -157,6 +157,11 @@ class Database(Component):
 
     @serialize_object_id
     def search_universities(self, search: str):
+        """
+        Full text search on universities. Retrieves the top 6 results as geojson
+        :param search: str
+        :return: list of universities as geojson
+        """
         def remove_reports(_q):
             if _q.get('rapporter'):
                 del _q['rapporter']
@@ -164,11 +169,6 @@ class Database(Component):
             del _q['raw_html']
             return _q
 
-        # q = [remove_reports(i) for i in self._uni.find({'$text': {'$search': search}},
-        #                                                {'score': {'$meta': "textScore"}}
-        #                                                ).sort([('score',
-        #                                                         {'$meta': 'textScore'})]
-        #                                                       )[:5]]
         q = list(self._uni.aggregate([{'$match': {'$text': {'$search': search}}},
                                       {'$sort': {'score': {'$meta': 'textScore'}}},
                                       {'$project': {
@@ -177,7 +177,7 @@ class Database(Component):
                                           'properties._id': '$_id',
                                           'geometry': '$geometry'
                                       }}
-                                      ]))
+                                      ]))[:6]
         return q
 
     def get_or_create_user(self, email: str):
