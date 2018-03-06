@@ -15,12 +15,16 @@ routes = [
 
     Route('/uni_in_country/{country}', 'GET', views.uni_in_country),
 
-    Route('/fagomraade/{search}', 'GET', views.get_fagomraader, name='get_fagomraader'),
+    Route('/get_fagomraader/{search}', 'GET', views.get_fagomraader,
+          name='get_fagomraader'),
 
     Route('/advanced_search', 'GET', views.advanced_search, name='advanced_search'),
 
     Route('/get_reports_for_university/{_id}', 'GET', views.get_reports_for_university,
           name='get_reports_for_university'),
+
+    Route('/search_universities/{search}', 'GET', views.search_universities,
+          name='search_universities'),
 
     Route('/create_or_get_user/{email}', 'GET', views.create_or_get_user,
           name='create_or_get_user'),

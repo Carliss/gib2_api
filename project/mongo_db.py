@@ -8,6 +8,37 @@ from pymongo import MongoClient
 from pymongo.collection import ReturnDocument
 
 
+def serialize_object_id(funk):
+    """
+    Decorator that first checks if connected to mongo, if not return 503 else transforms
+    ObjectIds to str because json can NOT serialize ObjectIds,
+    :param funk: the function to decorate
+    :return: query with converted _id or 503 if no connection to mongo
+    """
+
+    def wrapper(self, *args, **kwargs):
+        """python magic"""
+        if not self.ping():
+            return Response({'reason': 'Database is down'}, status=503)
+        q = funk(self, *args, **kwargs)
+        if isinstance(q, dict):
+            q['_id'] = str(q['_id'])
+            if q.get('rapporter'):
+                q['rapporter'] = [str(i) for i in q['rapporter']]
+        else:
+            for doc in q:
+                doc['_id'] = str(doc['_id'])
+                if doc.get('scraped'):
+                    doc['scraped'] = str(doc['scraped'])
+                if doc.get('raw_html'):
+                    del doc['raw_html']
+                if doc.get('rapporter'):
+                    doc['rapporter'] = [str(i) for i in doc['rapporter']]
+        return q
+
+    return wrapper
+
+
 class Database(Component):
     """
     MongoDB class that holds all methods for interact with mongo.
@@ -22,40 +53,13 @@ class Database(Component):
         :param uni_coll: the university collection in the database, e.g. 'uni'
         :param country_coll: the country collection in the database, e.g. 'world_countries'
         """
+        super().__init__(Database)
         self._mongo = MongoClient(uri)
         self._db = self._mongo[db]
         self._uni = self._db[uni_coll]
         self._country = self._db[country_coll]
         self._reports = self._db[reports_coll]
         self._users = self._db[users_coll]
-
-    def _serialize_object_id(funk):
-        """
-        Decorator that first checks if connected to mongo, if not return 503 else transforms
-        ObjectIds to str because json can NOT serialize ObjectIds,
-        :param funk: the function to decorate
-        :return: query with converted _id or 503 if no connection to mongo
-        """
-        def wrapper(self, *args, **kwargs):
-            """python magic"""
-            if not self.ping():
-                return Response({'reason': 'Database is down'}, status=503)
-            q = funk(self, *args, **kwargs)
-            if isinstance(q, dict):
-                q['_id'] = str(q['_id'])
-                if q.get('rapporter'):
-                    q['rapporter'] = [str(i) for i in q['rapporter']]
-            else:
-                for doc in q:
-                    doc['_id'] = str(doc['_id'])
-                    if doc.get('scraped'):
-                        doc['scraped'] = str(doc['scraped'])
-                    if doc.get('raw_html'):
-                        del doc['raw_html']
-                    if doc.get('rapporter'):
-                        doc['rapporter'] = [str(i) for i in doc['rapporter']]
-            return q
-        return wrapper
 
     def ping(self) -> bool:
         """
@@ -68,7 +72,7 @@ class Database(Component):
         except:
             return False
 
-    @_serialize_object_id
+    @serialize_object_id
     def get_university_by_id(self, _id: str):
         """
         returns the university the _id match if found in database, else []
@@ -79,7 +83,7 @@ class Database(Component):
 
         return q
 
-    @_serialize_object_id
+    @serialize_object_id
     def list_all_uni(self) -> list:
         """
         returns queries with id and key e.g key=universitet
@@ -87,48 +91,46 @@ class Database(Component):
         """
         q = list(self._uni.aggregate([{'$match': {'_id': {'$exists': True}}},
                                       {'$project': {
-                                              'type': 'Feature',
-                                              'properties.university': '$universitet',
-                                              'properties._id': '$_id',
-                                              'geometry': '$geometry'
+                                          'type': 'Feature',
+                                          'properties.university': '$universitet',
+                                          'properties._id': '$_id',
+                                          'geometry': '$geometry'
                                       }}]))
         return q
 
-    @_serialize_object_id
+    @serialize_object_id
     def search_by_all(self, text: str) -> list:
         """
         Returns regex match on text in the database
         :param text: string of search
         :return: list of universities
         """
+
         def remove_reports(_q):
             if _q.get('rapporter'):
                 del _q['rapporter']
             return _q
+
         q = [remove_reports(i) for i in self._uni.find({'$text': {'$search': text}},
                                                        {'score': {'$meta': "textScore"}}
                                                        ).sort([('score', {'$meta': 'textScore'})])]
         return q
 
-    @_serialize_object_id
+    @serialize_object_id
     def get_country_list(self, country):
-        # TODO
         count = self._country.find_one({'properties.name': {'$regex': country, '$options': 'i'}},
                                        {'geometry': 1, '_id': 0})
-        print(count)
         q = list(self._uni.find({'geometry': {'$geoWithin': {'$geometry': count['geometry']}}}))
-        print(q)
 
         return q
 
     def get_fagomraader(self, search: str) -> list:
-        # TODO
         q = self._uni.distinct('Fagområde')
         if search:
             q = [i for i in q if search.lower() in i.lower()]
         return q
 
-    @_serialize_object_id
+    @serialize_object_id
     def get_reports_for_university(self, university_id: str) -> list:
         reports_ids = self._uni.find_one({'_id': ObjectId(university_id)},
                                          {'rapporter': 1, '_id': 0}).get('rapporter')
@@ -138,20 +140,39 @@ class Database(Component):
             q = []
         return q
 
+    def search_universities(self, search: str):
+        def remove_reports(_q):
+            if _q.get('rapporter'):
+                del _q['rapporter']
+            _q['_id'] = str(_q['_id'])
+            del _q['raw_html']
+            return _q
+
+        q = [remove_reports(i) for i in self._uni.find({'$text': {'$search': search}},
+                                                       {'score': {'$meta': "textScore"}}
+                                                       ).sort([('score',
+                                                                {'$meta': 'textScore'})]
+                                                              )[:5]]
+        return q
+
     def get_or_create_user(self, email: str):
         # todo add validation
         # user exists
         user = self._users.find_one({'_id': email})
         # create user
         if not user:
-            user = self._users.find_one_and_update({'_id': email},
-                                                   {'$set': {'last_modified': datetime.datetime.utcnow(
-                                                   ).isoformat(),
-                                                             'my_universities': {}}},
-                                                   upsert=True,
-                                                   return_document=ReturnDocument.AFTER)
+            user = self._users.find_one_and_update(
+                {'_id': email},
+                {
+                    '$set':
+                        {
+                           'last_modified': datetime.datetime.utcnow().isoformat(),
+                           'my_universities': {}
+                        }
+                },
+                upsert=True,
+                return_document=ReturnDocument.AFTER)
         uni_ids = user['my_universities'].keys()
-        print(uni_ids)
         unis = list(self._uni.find({'_id': {'$in': [ObjectId(i) for i in uni_ids]}}))
         for uni in unis:
             uni['_id'] = str(uni['_id'])
