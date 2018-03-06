@@ -55,6 +55,19 @@ def get_university_by_id(db: Database, _id: str):
 
 
 @allow_cross_origin
+@as_geojson
+def get_university_geojson_by_id(db: Database, uni_id: str):
+    """
+    Returns a geojson of the university that matched the _id
+    :param db: Server side parameter
+    :param _id: str of university id
+    :return: GeoJson of the university
+    """
+    q = db.get_university_geojson_by_id(uni_id)
+    return q
+
+
+@allow_cross_origin
 def ping_database(db: Database):
     """
     Used to test connection to MongoDB

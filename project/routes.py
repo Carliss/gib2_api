@@ -8,6 +8,9 @@ routes = [
 
     Route('/get_university_by_id/{_id}', 'GET', views.get_university_by_id),
 
+    Route('/get_university_geojson_by_id/{uni_id}', 'GET', views.get_university_geojson_by_id,
+          name="get_university_geojson_by_id"),
+
     Route('/list_all_uni_as_geo_json', 'GET', views.list_all_uni_as_geo_json,
           name='list_all_uni_as_geo_json'),
 

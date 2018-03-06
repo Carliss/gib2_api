@@ -88,6 +88,17 @@ class Database(Component):
         return q
 
     @serialize_object_id
+    def get_university_geojson_by_id(self, uni_id) -> list:
+        q = list(self._uni.aggregate([{'$match': {'_id': ObjectId(uni_id)}},
+                                      {'$project': {
+                                          'type': 'Feature',
+                                          'properties.university': '$universitet',
+                                          'properties._id': '$_id',
+                                          'geometry': '$geometry'
+                                      }}]))
+        return q
+
+    @serialize_object_id
     def list_all_uni(self) -> list:
         """
         returns queries with id and key e.g key=universitet
