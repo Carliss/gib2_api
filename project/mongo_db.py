@@ -9,6 +9,7 @@ from pymongo.collection import ReturnDocument
 
 from pprint import pprint as pp
 
+
 def serialize_object_id(funk):
     """
     Decorator that first checks if connected to mongo, if not return 503 else transforms
@@ -105,12 +106,17 @@ class Database(Component):
         :return:  Cursor
         """
         q = list(self._uni.aggregate([{'$match': {'_id': {'$exists': True}}},
-                                      {'$project': {
-                                          'type': 'Feature',
-                                          'properties.university': '$universitet',
-                                          'properties._id': '$_id',
-                                          'geometry': '$geometry'
-                                      }}]))
+                                      {
+                                          '$project': {
+                                              'type': 'Feature',
+                                              'properties.university': '$universitet',
+                                              'properties._id': '$_id',
+                                              'properties.rapporter_antall': '$rapporter_antall',
+                                              'geometry': '$geometry',
+                                          }
+                                      },
+                                      {'$sort': {'properties.rapporter_antall': -1}}
+                                      ]))
         return q
 
     @serialize_object_id
@@ -136,7 +142,7 @@ class Database(Component):
         count = self._country.find_one({'properties.name': {'$regex': country, '$options': 'i'}},
                                        {'geometry': 1, '_id': 0})
         q = list(self._uni.find({'geometry': {'$geoWithin': {'$geometry': count['geometry']}}}))
-
+        q = sorted(q, key=lambda x: x.get('rapporter_antall', -1), reverse=True)
         return q
 
     def get_fagomraader(self, search: str) -> list:
@@ -181,9 +187,11 @@ class Database(Component):
         return q
 
     def get_or_create_user(self, email: str):
-        # todo add validation
         # user exists
         user = self._users.find_one({'_id': email})
+        # validation
+        if not email.endswith('@stud.ntnu.no'):
+            return {'message': f'{email}: invalid username'}
         # create user
         if not user:
             user = self._users.find_one_and_update(
