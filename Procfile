@@ -1,1 +1,1 @@
-web: apistar run --port 8080 --host 0.0.0.0
+web: apistar run --port $PORT --host 0.0.0.0
