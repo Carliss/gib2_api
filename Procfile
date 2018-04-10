@@ -1,1 +1,1 @@
-web: apistar run 0.0.0.0:8080
+web: apistar run --port $PORT
