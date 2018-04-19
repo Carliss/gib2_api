@@ -65,6 +65,7 @@ class Database(Component):
         self._country = self._db[country_coll]
         self._reports = self._db[reports_coll]
         self._users = self._db[users_coll]
+        self._cache = self._db['cache']
 
     def ping(self) -> bool:
         """
@@ -324,63 +325,67 @@ class Database(Component):
         # TODO smarter queries
         countries = self._country.find({}, {'properties.name': 1, '_id': 0, 'geometry': 1})
         return countries
-
+    
     def get_choropleth_countries(self):
-        countries = self._list_all_country_names_with_geo()
-        total_reports_count = self._reports.find().count()
-        total_uni_count = self._uni.find().count()
+        choropleth = self._cache.find_one()
+        if choropleth:
+            del choropleth['_id']
+            return choropleth
+        else:
+            countries = self._list_all_country_names_with_geo()
+            total_reports_count = self._reports.find().count()
+            total_uni_count = self._uni.find().count()
 
-        report_total = 0
-        report_count = 0
-        university_total = 0
-        university_count = 0
+            report_total = 0
+            # report_count = 0
+            university_total = 0
+            # university_count = 0
 
-        choropleth = {
-            'type': 'FeatureCollection',
-            'features': []
-        }
-        for country in countries:
-            country_with_unis = self.get_country_list(country['properties']['name'])
-            if not country_with_unis:
-                continue
-            country['type'] = 'Feature'
-            country['properties'] = {
-                'name': country['properties']['name']
+            choropleth = {
+                'type': 'FeatureCollection',
+                'features': []
             }
-            del country['geometry']
+            for country in countries:
+                country_with_unis = self.get_country_list(country['properties']['name'])
+                if not country_with_unis:
+                    continue
+                country['type'] = 'Feature'
+                country['properties'] = {
+                    'name': country['properties']['name']
+                }
+                # del country['geometry']
 
-            unis_in_country_count = len(country_with_unis)
-            unis_in_country = [uni['_id'] for uni in country_with_unis]
-            university_rating = unis_in_country_count / total_uni_count
+                unis_in_country_count = len(country_with_unis)
+                unis_in_country = [uni['_id'] for uni in country_with_unis]
+                university_rating = unis_in_country_count / total_uni_count
 
-            reports_in_country = self._get_reports_for_universities([ObjectId(i) for i in unis_in_country])
-            reports_in_country_count = len(reports_in_country) if reports_in_country else 1
-            reports_in_country_rating = reports_in_country_count / total_reports_count
-            # pp([int(r['Hvordan vil du rangere den sosiale opplevelsen?']) for r in reports_in_country])
-            # pp(reports_in_country)
-            social_in_country_rating = sum([int(r['Hvordan vil du rangere den sosiale opplevelsen?']) for r in reports_in_country]) \
-                                            / reports_in_country_count
-            academic_in_country_rating = sum([int(r['Hvordan vil du rangere den akademiske kvaliteten?']) for r in reports_in_country]) \
-                                            / reports_in_country_count
+                reports_in_country = self._get_reports_for_universities([ObjectId(i) for i in unis_in_country])
+                reports_in_country_count = len(reports_in_country)
+                reports_in_country_rating = reports_in_country_count / total_reports_count
+                # pp([int(r['Hvordan vil du rangere den sosiale opplevelsen?']) for r in reports_in_country])
+                # pp(reports_in_country)
+                social_in_country_rating = (sum([int(r['Hvordan vil du rangere den sosiale opplevelsen?']) for r in reports_in_country]) \
+                                                / reports_in_country_count) if reports_in_country_count else 0
+                academic_in_country_rating = (sum([int(r['Hvordan vil du rangere den akademiske kvaliteten?']) for r in reports_in_country]) \
+                                                / reports_in_country_count) if reports_in_country_count else 0
 
-            # social_rating = sum([uni for uni in country_with_unis['features']['properties']])
-            country['properties']['report_rating'] = reports_in_country_rating
-            report_total += reports_in_country_rating
-            # report_count += 1
-            country['properties']['university_rating'] = university_rating
-            university_total += university_rating
-            # university_count += 1
-            country['properties']['social_rating'] = social_in_country_rating
-            country['properties']['academic_rating'] = academic_in_country_rating
-            choropleth['features'].append(country)
+                # social_rating = sum([uni for uni in country_with_unis['features']['properties']])
+                country['properties']['report_rating'] = reports_in_country_rating
+                report_total += reports_in_country_rating
+                # report_count += 1
+                country['properties']['university_rating'] = university_rating
+                university_total += university_rating
+                # university_count += 1
+                country['properties']['social_rating'] = social_in_country_rating
+                country['properties']['academic_rating'] = academic_in_country_rating
+                choropleth['features'].append(country)
 
-        for c in choropleth['features']:
-            country['properties']['report_rating'] /= report_total
-            country['properties']['university_rating'] /= university_rating
-
-        print(f'report_total: {report_total}')
-        print(f'university_rating: {university_rating}')
+            for c in choropleth['features']:
+                c['properties']['report_rating'] /= report_total
+                c['properties']['university_rating'] /= university_total
+            self._cache.insert_one(dict(choropleth))
         return choropleth
+
 
 def init_database(settings: Settings):
     # TODO
