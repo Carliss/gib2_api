@@ -228,7 +228,7 @@ class Database(Component):
         for uni_id in user['my_universities'].keys():
             user['my_universities'][uni_id]['notes'] = list(user['my_universities'][uni_id]['notes'].items())
             user['my_universities'][uni_id]['links'] = list(user['my_universities'][uni_id]['links'].items())
-        # user['my_universities'] = list(user['my_universities'].values())
+        user['my_universities'] = list(user['my_universities'].values())
 
         return user
 
