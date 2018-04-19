@@ -93,7 +93,7 @@ class Database(Component):
         q = list(self._uni.aggregate([{'$match': {'_id': ObjectId(uni_id)}},
                                       {'$project': {
                                           'type': 'Feature',
-                                          'properties.university': '$universitet',
+                                          'properties.universitet': '$universitet',
                                           'properties._id': '$_id',
                                           'geometry': '$geometry'
                                       }}]))
@@ -329,6 +329,12 @@ class Database(Component):
         countries = self._list_all_country_names_with_geo()
         total_reports_count = self._reports.find().count()
         total_uni_count = self._uni.find().count()
+
+        report_total = 0
+        report_count = 0
+        university_total = 0
+        university_count = 0
+
         choropleth = {
             'type': 'FeatureCollection',
             'features': []
@@ -338,8 +344,10 @@ class Database(Component):
             if not country_with_unis:
                 continue
             country['type'] = 'Feature'
-            country['properties'] = {}
-            country['geometry']
+            country['properties'] = {
+                'name': country['properties']['name']
+            }
+            del country['geometry']
 
             unis_in_country_count = len(country_with_unis)
             unis_in_country = [uni['_id'] for uni in country_with_unis]
@@ -357,10 +365,21 @@ class Database(Component):
 
             # social_rating = sum([uni for uni in country_with_unis['features']['properties']])
             country['properties']['report_rating'] = reports_in_country_rating
+            report_total += reports_in_country_rating
+            # report_count += 1
             country['properties']['university_rating'] = university_rating
+            university_total += university_rating
+            # university_count += 1
             country['properties']['social_rating'] = social_in_country_rating
             country['properties']['academic_rating'] = academic_in_country_rating
             choropleth['features'].append(country)
+
+        for c in choropleth['features']:
+            country['properties']['report_rating'] /= report_total
+            country['properties']['university_rating'] /= university_rating
+
+        print(f'report_total: {report_total}')
+        print(f'university_rating: {university_rating}')
         return choropleth
 
 def init_database(settings: Settings):
