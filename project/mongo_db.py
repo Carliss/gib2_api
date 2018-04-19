@@ -161,6 +161,17 @@ class Database(Component):
             q = []
         return q
 
+    def _get_reports_for_universities(self, university_ids) -> list:
+        reports_ids = []
+        for uni in self._uni.find({'_id': {'$in': university_ids}}, {'rapporter': 1, '_id': 0}):
+            if uni.get('rapporter'):
+                reports_ids += uni.get('rapporter')
+        if reports_ids:
+            q = list(self._reports.find({'_id': {'$in': reports_ids}}))
+        else:
+            q = []
+        return q
+
     @serialize_object_id
     def search_universities(self, search: str):
         """
@@ -214,7 +225,10 @@ class Database(Component):
             del uni['raw_html']
             user['my_universities'][uni.get('_id')]['university'] = uni
 
-        user['my_universities'] = list(user['my_universities'].values())
+        for uni_id in user['my_universities'].keys():
+            user['my_universities'][uni_id]['notes'] = list(user['my_universities'][uni_id]['notes'].items())
+            user['my_universities'][uni_id]['links'] = list(user['my_universities'][uni_id]['links'].items())
+        # user['my_universities'] = list(user['my_universities'].values())
 
         return user
 
@@ -273,7 +287,7 @@ class Database(Component):
                                             f'{to_update_key}': to_update_value},
                                        'last_modified': datetime.datetime.utcnow().isoformat()
                                    }
-                               })
+                                })
         return 'ok'
 
     def remove_link_or_note(self, email, uni_id, note_id, link_id):
@@ -297,9 +311,61 @@ class Database(Component):
                                })
         return 'ok'
 
+    def get_university_and_score(self):
+        university_and_score = list(self._uni.find({'rapporter_antall': {'$exists': True}},
+                                                   {
+                                                       '_id': 0,
+                                                       'rapporter_antall': 1,
+                                                       'universitet': 1
+                                                   }))
+        return university_and_score
+
+    def _list_all_country_names_with_geo(self):
+        # TODO smarter queries
+        countries = self._country.find({}, {'properties.name': 1, '_id': 0, 'geometry': 1})
+        return countries
+
+    def get_choropleth_countries(self):
+        countries = self._list_all_country_names_with_geo()
+        total_reports_count = self._reports.find().count()
+        total_uni_count = self._uni.find().count()
+        choropleth = {
+            'type': 'FeatureCollection',
+            'features': []
+        }
+        for country in countries:
+            country_with_unis = self.get_country_list(country['properties']['name'])
+            if not country_with_unis:
+                continue
+            country['type'] = 'Feature'
+            country['properties'] = {}
+            country['geometry']
+
+            unis_in_country_count = len(country_with_unis)
+            unis_in_country = [uni['_id'] for uni in country_with_unis]
+            university_rating = unis_in_country_count / total_uni_count
+
+            reports_in_country = self._get_reports_for_universities([ObjectId(i) for i in unis_in_country])
+            reports_in_country_count = len(reports_in_country) if reports_in_country else 1
+            reports_in_country_rating = reports_in_country_count / total_reports_count
+            # pp([int(r['Hvordan vil du rangere den sosiale opplevelsen?']) for r in reports_in_country])
+            # pp(reports_in_country)
+            social_in_country_rating = sum([int(r['Hvordan vil du rangere den sosiale opplevelsen?']) for r in reports_in_country]) \
+                                            / reports_in_country_count
+            academic_in_country_rating = sum([int(r['Hvordan vil du rangere den akademiske kvaliteten?']) for r in reports_in_country]) \
+                                            / reports_in_country_count
+
+            # social_rating = sum([uni for uni in country_with_unis['features']['properties']])
+            country['properties']['report_rating'] = reports_in_country_rating
+            country['properties']['university_rating'] = university_rating
+            country['properties']['social_rating'] = social_in_country_rating
+            country['properties']['academic_rating'] = academic_in_country_rating
+            choropleth['features'].append(country)
+        return choropleth
 
 def init_database(settings: Settings):
     # TODO
     return Database(settings['MONGO_URI'], settings['MONGO_DB'], settings['MONGO_UNI_COLL'],
                     settings['MONGO_COUNTRY_COLL'], settings['MONGO_REPORTS_COLL'],
                     settings['MONGO_USERS_COLL'])
+

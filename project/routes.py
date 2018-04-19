@@ -43,6 +43,12 @@ routes = [
 
     Route('/add_link_or_note/{email}', 'GET', views.add_link_or_note, name='add_link_or_note'),
 
+    Route('/get_university_and_score', 'GET', views.get_university_and_score,
+          name='get_university_and_score'),
+    
+    Route('/get_choropleth_countries', 'GET', views.get_choropleth_countries,
+          name='get_choropleth_countries'),
+
     Include('/', docs_urls),
     Include('/static', static_urls)
 ]

@@ -264,3 +264,28 @@ def remove_link_or_note(db: Database, qp: QueryParams, email: str):
     link_id = qp.get('link_id')
     message = db.remove_link_or_note(email, uni_id, note_id, link_id)
     return {'message': message}
+
+
+@allow_cross_origin
+def get_university_and_score(db: Database):
+    """
+    Returns a list of every university with at least one repport,
+    on the form
+    [
+        {'universitet': str, 'rapport_antall': int},
+        ...
+    ]
+    """
+    universities_and_score = db.get_university_and_score()
+    return universities_and_score
+
+
+@allow_cross_origin
+def get_choropleth_countries(db: Database):
+    """
+    Returns a list of countries in geojson with different stats to
+    create choropleth maps on:
+    - reports
+    """
+    countries = db.get_choropleth_countries()
+    return countries
