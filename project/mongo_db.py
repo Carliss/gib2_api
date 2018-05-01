@@ -187,16 +187,14 @@ class Database(Component):
             del _q['raw_html']
             return _q
 
-        # q = list(self._uni.aggregate([{'$match': {'$text': {'$search': search}}},
-        #                               {'$sort': {'score': {'$meta': 'textScore'}}},
-        #                               {'$project': {
-        #                                   'type': 'Feature',
-        #                                   'properties.university': '$universitet',
-        #                                   'properties._id': '$_id',
-        #                                   'geometry': '$geometry'
-        #                               }}
-        #                               ]))[:6]
-        q = list(self._uni.find({'$or': [{'universitet': {'$regex': search, '$options': 'i'}}, {'land': {'$regex': search, '$options': 'i'}}, {'by': {'$regex': search, '$options': 'i'}}]},{'_id': 0}))[:6]
+        q = list(self._uni.aggregate([{'$match': {'$or': [{'universitet': {'$regex': search, '$options': 'i'}}, {'land': {'$regex': search, '$options': 'i'}}, {'by': {'$regex': search, '$options': 'i'}}]}},
+                                      {'$project': {
+                                          'type': 'Feature',
+                                          'properties.university': '$universitet',
+                                          'properties._id': '$_id',
+                                          'geometry': '$geometry'
+                                      }}
+                                      ]))[:6]
         return q
 
     def _add_star_to_university(self, uni_id):
