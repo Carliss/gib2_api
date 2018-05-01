@@ -198,6 +198,10 @@ class Database(Component):
                                       ]))[:6]
         return q
 
+    def _add_star_to_university(self, uni_id):
+        """increment the star value of a university"""
+        self._uni.update_one({'_id': ObjectId(uni_id)}, {'$inc': {'star_count': 1}})
+
     def get_or_create_user(self, email: str):
         # user exists
         user = self._users.find_one({'_id': email})
@@ -252,6 +256,7 @@ class Database(Component):
                                    f'my_universities.{uni_id}.links': {}
                                }}
                                )
+        self._add_star_to_university(uni_id)
         user = self.get_or_create_user(email)
         return user
 
