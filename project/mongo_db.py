@@ -327,11 +327,8 @@ class Database(Component):
         return countries
     
     def get_choropleth_countries(self):
-        choropleth = self._cache.find_one()
-        if choropleth:
-            del choropleth['_id']
-            return choropleth
-        else:
+        choropleth = self._cache.find_one({'_id': 'get_choropleth_countries'})
+        if not choropleth:
             countries = self._list_all_country_names_with_geo()
             total_reports_count = self._reports.find().count()
             total_uni_count = self._uni.find().count()
@@ -347,12 +344,17 @@ class Database(Component):
             }
             for country in countries:
                 country_with_unis = self.get_country_list(country['properties']['name'])
-                if not country_with_unis:
-                    continue
                 country['type'] = 'Feature'
                 country['properties'] = {
                     'name': country['properties']['name']
                 }
+                if not country_with_unis:
+                    country['properties']['report_rating'] = 0
+                    country['properties']['university_rating'] = 0
+                    country['properties']['social_rating'] = 0
+                    country['properties']['academic_rating'] = 0
+                    choropleth['features'].append(country)
+                    continue
                 # del country['geometry']
 
                 unis_in_country_count = len(country_with_unis)
@@ -383,7 +385,23 @@ class Database(Component):
             for c in choropleth['features']:
                 c['properties']['report_rating'] /= report_total
                 c['properties']['university_rating'] /= university_total
+            choropleth['_id'] = 'get_choropleth_countries'
             self._cache.insert_one(dict(choropleth))
+        else:
+            del choropleth['_id']
+        report_rating = sorted(filter(lambda x: x['properties']['report_rating'] != 0, choropleth['features']), key=lambda x: x['properties']['report_rating'])
+        report_rating_step = len(report_rating) // 4
+        report_rating_groups = [report_rating[i]['properties']['report_rating'] for i in range(report_rating_step, len(report_rating), report_rating_step)]
+        report_rating_groups.insert(0, 0)
+
+        university_rating = sorted(filter(lambda x: x['properties']['university_rating'] != 0, choropleth['features']), key=lambda x: x['properties']['university_rating'])
+        university_rating_step = len(university_rating) // 4
+        university_rating_groups = [university_rating[i]['properties']['university_rating'] for i in range(university_rating_step, len(university_rating), university_rating_step)]
+        university_rating_groups.insert(0, 0)
+
+        choropleth['university_rating_groups'] = university_rating_groups
+        choropleth['report_rating_groups'] = report_rating_groups
+
         return choropleth
 
 
