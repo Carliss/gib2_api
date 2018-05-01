@@ -252,7 +252,8 @@ class Database(Component):
                                    f'my_universities.{uni_id}.links': {}
                                }}
                                )
-        return 'ok'
+        user = self.get_or_create_user(email)
+        return user
 
     def remove_uni_from_cart(self, email: str, uni_id: str):
         user = self._users.update_one({'_id': email,
@@ -262,7 +263,8 @@ class Database(Component):
                                            'last_modified': datetime.datetime.utcnow().isoformat(),
                                        }
                                        })
-        return 'ok' if user.modified_count else 'nothing updated'
+        user = self.get_or_create_user(email)
+        return user
 
     def add_link_or_note(self, email, uni_id, head, note, link):
         user = self._users.find_one({'_id': email}, {'my_universities': 1})

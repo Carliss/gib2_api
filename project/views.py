@@ -203,11 +203,10 @@ def add_uni_to_cart(db: Database, email: str, uni_id: str):
     :param db: Server side parameter
     :param email: str
     :param uni_id: str of the university id
-    :return: message
+    :return: updated user
     """
-    message = db.add_uni_to_cart(email, uni_id)
-    data = {'message': message}
-    return data
+    user = db.add_uni_to_cart(email, uni_id)
+    return user
 
 
 @allow_cross_origin
@@ -217,11 +216,10 @@ def remove_uni_from_cart(db: Database, email: str, uni_id: str):
     :param db: Server side parameter
     :param email: str
     :param uni_id: str of university id
-    :return: message
+    :return: updated user
     """
-    message = db.remove_uni_from_cart(email, uni_id)
-    data = {'message': message}
-    return data
+    user = db.remove_uni_from_cart(email, uni_id)
+    return user
 
 
 @allow_cross_origin
