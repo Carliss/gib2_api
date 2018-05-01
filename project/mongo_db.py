@@ -196,7 +196,7 @@ class Database(Component):
         #                                   'geometry': '$geometry'
         #                               }}
         #                               ]))[:6]
-        q = list(self._uni.find({'$or': [{'universitet': {'$regex': search, '$options': 'i'}}, {'land': {'$regex': search, '$options': 'i'}}, {'by': {'$regex': search, '$options': 'i'}}]}))[:6]
+        q = list(self._uni.find({'$or': [{'universitet': {'$regex': search, '$options': 'i'}}, {'land': {'$regex': search, '$options': 'i'}}, {'by': {'$regex': search, '$options': 'i'}}]},{'_id': 0}))[:6]
         return q
 
     def _add_star_to_university(self, uni_id):
