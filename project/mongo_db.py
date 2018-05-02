@@ -79,13 +79,21 @@ class Database(Component):
             return False
 
     @serialize_object_id
-    def get_university_by_id(self, _id: str):
+    def get_university_by_id(self, uni_id: str):
         """
         returns the university the _id match if found in database, else []
-        :param _id: string, hex
+        :param uni_id: string, hex
         :return: dict
         """
-        q = self._uni.find_one({'_id': ObjectId(_id)})
+        q = self._uni.find_one({'_id': ObjectId(uni_id)})
+        q['rating'] = {
+            'positive': 0,
+            'negative': 0
+        }
+        reports = self.get_reports_for_university(uni_id)
+        for report in reports:
+            q['rating']['positive'] += 1 if report['Vil du anbefale andre å reise til studiestedet?'] == 'ja' else 0
+            q['rating']['negative'] += 1 if report['Vil du anbefale andre å reise til studiestedet?'] == 'nei' else 0
 
         return q
 
