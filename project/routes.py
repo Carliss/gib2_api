@@ -49,6 +49,12 @@ routes = [
     Route('/get_choropleth_countries', 'GET', views.get_choropleth_countries,
           name='get_choropleth_countries'),
 
+    Route('/get_money_for_uni/{uni_id}', 'GET', views.get_money_for_uni,
+          name='get_money_for_uni'),
+    
+    Route('/get_top_stared_universities/', 'GET', views.get_top_stared_universities,
+          name='get_top_stared_universities'),
+    
     Include('/', docs_urls),
     Include('/static', static_urls)
 ]

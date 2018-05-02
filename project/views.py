@@ -287,3 +287,24 @@ def get_choropleth_countries(db: Database):
     """
     countries = db.get_choropleth_countries()
     return countries
+
+
+@allow_cross_origin
+def get_money_for_uni(db: Database, uni_id):
+    """
+    Returns a list of every uni with only
+        skolepenger_pr_semester
+        boligutgifter
+        penger_i_tillegg
+    """
+    unis = db.get_money_for_uni(None if uni_id == 'all' else uni_id)
+    return unis
+
+
+@allow_cross_origin
+def get_top_stared_universities(db: Database):
+    """
+    Returns top4 universities based on star count
+    """
+    top4 = db.get_top_stared_universities()
+    return top4

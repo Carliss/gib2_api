@@ -410,6 +410,61 @@ class Database(Component):
 
         return choropleth
 
+    def get_money_for_uni(self, uni_id):
+        """
+        Returns money stats for every university if uni_id is None
+        if uni_id is provided only return money stats for that uni
+        """
+
+        def fix_money(money):
+            try:
+                return int(''.join(money.replace('kr', '').replace('_', '').strip().split()))
+            except:
+                return
+
+        if uni_id:
+            unis = [self._uni.find_one({'_id': ObjectId(uni_id)}, {'rapporter': 1, 'universitet': 1})]
+        else:
+            unis = list(self._uni.find({'rapporter': {'$exists': 1}}, {'rapporter': 1, 'universitet': 1}))
+        for uni in unis:
+            uni['_id'] = str(uni['_id'])
+            uni['money_stats'] = {
+                'skolepenger': 0,
+                'skolepenger_liste': [],
+                'boligutgifter': 0,
+                'boligutgifter_liste': [],
+                'ekstra': 0,
+                'ekstra_liste': [],
+            }
+            reports = self.get_reports_for_university(uni['_id']) if uni.get('rapporter') else []
+            if reports:
+                del uni['rapporter']
+            for report in reports:
+                skolepenger = fix_money(report['Hva var skolepengene pr_ semester?'])
+                if skolepenger is not None:
+                    uni['money_stats']['skolepenger_liste'].append(skolepenger)
+                    uni['money_stats']['skolepenger'] += skolepenger
+                boligutgifter = fix_money(report['Hva var boligutgiftene pr_ måned (inkludert strøm, internett osv_)?'])
+                if boligutgifter is not None:
+                    uni['money_stats']['boligutgifter_liste'].append(boligutgifter)
+                    uni['money_stats']['boligutgifter'] += boligutgifter
+                ekstra = fix_money(report['Hvor mye brukte du i tillegg til pengene fra Lånekassen i løpet av oppholdet?'])
+                if ekstra is not None:
+                    uni['money_stats']['ekstra_liste'].append(ekstra)
+                    uni['money_stats']['ekstra'] += ekstra
+            uni['money_stats']['skolepenger'] = uni['money_stats']['skolepenger'] // len(uni['money_stats']['skolepenger_liste']) if uni['money_stats']['skolepenger_liste'] else None
+            uni['money_stats']['boligutgifter'] = uni['money_stats']['boligutgifter'] // len(uni['money_stats']['boligutgifter_liste']) if uni['money_stats']['boligutgifter_liste'] else None
+            uni['money_stats']['ekstra'] = uni['money_stats']['ekstra'] // len(uni['money_stats']['ekstra_liste']) if uni['money_stats']['ekstra_liste'] else None
+        print(unis)
+        return unis
+
+    @serialize_object_id
+    def get_top_stared_universities(self):
+        """Returns the top 4 universities based on star_count"""
+        unis = self._uni.find({'star_count': {'$exists': 1}})
+        top4 = sorted(unis, key=lambda x: -x['star_count'])[:4]
+        return top4
+
 
 def init_database(settings: Settings):
     # TODO
