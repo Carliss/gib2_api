@@ -485,6 +485,26 @@ class Database(Component):
         top4 = sorted(unis, key=lambda x: -x['star_count'])[:4]
         return top4
 
+    def _set_distance_from_ntnu_to_uni(self):
+        a = list(self._uni.aggregate(
+            [
+                {
+                    "$geoNear":
+                    {
+                        "near":
+                        {
+                            "type": "Point",
+                            "coordinates": [10.402077, 63.419499]
+                        },
+                        "num": 1000,
+                        "spherical": True,
+                        "maxDistance": 10000000000,
+                        "distanceField": "distance",
+                    }
+                }
+            ]))
+        for uni in a:
+            self._uni.update_one({'_id': uni['_id']}, {'$set': {'meters_from_ntnu': uni['distance']}})
 
 def init_database(settings: Settings):
     # TODO
