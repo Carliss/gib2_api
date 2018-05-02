@@ -54,6 +54,9 @@ routes = [
     
     Route('/get_top_stared_universities/', 'GET', views.get_top_stared_universities,
           name='get_top_stared_universities'),
+
+    Route('/update_weather', 'GET', views.update_weather,
+          name='update_weather'),
     
     Include('/', docs_urls),
     Include('/static', static_urls)

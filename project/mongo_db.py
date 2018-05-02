@@ -6,6 +6,7 @@ from apistar.types import Settings
 from bson import ObjectId
 from pymongo import MongoClient
 from pymongo.collection import ReturnDocument
+from weather import Weather, Unit
 
 from pprint import pprint as pp
 
@@ -486,6 +487,7 @@ class Database(Component):
         return top4
 
     def _set_distance_from_ntnu_to_uni(self):
+        """adds distance to NTNU for every university"""
         a = list(self._uni.aggregate(
             [
                 {
@@ -505,6 +507,24 @@ class Database(Component):
             ]))
         for uni in a:
             self._uni.update_one({'_id': uni['_id']}, {'$set': {'meters_from_ntnu': uni['distance']}})
+    
+    def update_weather(self):
+        """
+        Updates weather today for every university
+        can only run once a day
+        """
+        # self._cache.update_one({'_id': 'weather_date'}, {'$set': {'date': datetime.datetime.today()}})
+        last_run = self._cache.find_one({'_id': 'weather_date'})
+        if last_run['date'] < datetime.datetime.today():
+            weather = Weather(unit=Unit.CELSIUS)
+            for uni in list(self._uni.find({'geometry': {'$exists': 1}})):
+                long, lat = uni['geometry']['coordinates']
+                location = weather.lookup_by_latlng(lat, long)
+                self._uni.update_one({'_id': uni['_id']}, {'$set': {'weather': {'min': int(location.forecast[0].low), 'high': int(location.forecast[0].high)}}})
+            self._cache.update_one({'_id': 'weather_date'}, {'$set': {'date': datetime.datetime.today() + datetime.timedelta(days=1)}})
+            return 'updated'
+        else:
+            return 'wait to update'
 
 def init_database(settings: Settings):
     # TODO

@@ -308,3 +308,11 @@ def get_top_stared_universities(db: Database):
     """
     top4 = db.get_top_stared_universities()
     return top4
+
+
+def update_weather(db: Database):
+    """
+    Update the weather for today, can only be run once a day
+    """
+    message = db.update_weather()
+    return {'message': message}
