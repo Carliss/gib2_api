@@ -453,7 +453,7 @@ class Database(Component):
                     uni['money_stats']['skolepenger_liste'].append(skolepenger)
                     uni['money_stats']['skolepenger'] += skolepenger
                 boligutgifter = fix_money(report['Hva var boligutgiftene pr_ måned (inkludert strøm, internett osv_)?'])
-                if boligutgifter is not None:
+                if 15001 > boligutgifter is not None:
                     uni['money_stats']['boligutgifter_liste'].append(boligutgifter)
                     uni['money_stats']['boligutgifter'] += boligutgifter
                 ekstra = fix_money(report['Hvor mye brukte du i tillegg til pengene fra Lånekassen i løpet av oppholdet?'])
