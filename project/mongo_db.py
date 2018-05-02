@@ -229,7 +229,7 @@ class Database(Component):
                 upsert=True,
                 return_document=ReturnDocument.AFTER)
         uni_ids = user['my_universities'].keys()
-        unis = list(self._uni.find({'_id': {'$in': [ObjectId(i) for i in uni_ids]}}))
+        unis = [self.get_university_by_id(uni) for uni in uni_ids]
         for uni in unis:
             uni['_id'] = str(uni['_id'])
             if uni.get('rapporter'):
