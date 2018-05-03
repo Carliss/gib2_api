@@ -166,7 +166,12 @@ class Database(Component):
         reports_ids = self._uni.find_one({'_id': ObjectId(university_id)},
                                          {'rapporter': 1, '_id': 0}).get('rapporter')
         if reports_ids:
-            q = list(self._reports.find({'_id': {'$in': reports_ids}}))
+            def fix_empty_strings(x):
+                for k, v in x.items():
+                    if not v:
+                        x[k] = ''
+                return x
+            q = list(map(lambda x: fix_empty_strings(x), self._reports.find({'_id': {'$in': reports_ids}})))
         else:
             q = []
         return q
