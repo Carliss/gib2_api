@@ -201,7 +201,7 @@ class Database(Component):
             del _q['raw_html']
             return _q
 
-        q = list(self._uni.aggregate([{'$match': {'geometry': {'$exists': 1}, '$or': [{'universitet': {'$regex': search, '$options': 'i'}}, {'land': {'$regex': search, '$options': 'i'}}, {'by': {'$regex': search, '$options': 'i'}}]}},
+        q = list(self._uni.aggregate([{'$match': {'geometry': {'$exists': 1}, '$or': [{'universitet': {'$regex': search, '$options': 'i'}}, {'land': {'$regex': search, '$options': 'i'}}, {'by': {'$regex': search, '$options': 'i'}}, {'Fagområde': {'$regex': search, '$options': 'i'}}]}},
                                       {'$project': {
                                           'type': 'Feature',
                                           'properties.university': '$universitet',
