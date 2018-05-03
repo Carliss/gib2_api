@@ -142,7 +142,7 @@ class Database(Component):
                 del _q['rapporter']
             return _q
 
-        q = [remove_reports(i) for i in self._uni.find({'$text': {'$search': text}},
+        q = [remove_reports(i) for i in self._uni.find({'geometry': {'$exists': 1}, '$text': {'$search': text}},
                                                        {'score': {'$meta': "textScore"}}
                                                        ).sort([('score', {'$meta': 'textScore'})])]
         return q
