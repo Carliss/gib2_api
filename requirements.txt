@@ -9,7 +9,7 @@ itypes==1.1.0
 Jinja2==2.10
 MarkupSafe==1.0
 pluggy==0.6.0
-py==1.5.2
+py==1.10.0
 pymongo==3.6.0
 pytest==3.4.0
 requests==2.18.4
